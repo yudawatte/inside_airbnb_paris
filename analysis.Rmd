@@ -1,0 +1,575 @@
+---
+title: "Analysis - Inside_Airbnb :City - Paris, France"
+output: word_document
+---
+
+# Detailed Analysis
+
+## Prerequisits
+******************************************************
+
+```{r}
+setwd("C:/Personal/Books/MSc. in Applied Statistics/MAS 5112 - Exploratory Data Analysis/Group Project 1/Inside_Airbnb_City_Paris_France")
+library(ggplot2)
+library(sf)
+library(geojsonR)
+library(tidyverse)
+library(ggpubr)
+library(reshape2)
+```
+
+\newpage
+### Load special data (shape data) France-Paris
+******************************************************
+
+```{r}
+# Load special data (shape data) France-Paris
+paris = st_read("neighbourhoods.geojson")
+
+# Load Cleaned Airbnb Data, France-Paris
+ab_data <- read_csv("listing_cleaned.csv") 
+```
+\newpage
+## Spread of Accommodations and their prices
+
+### Accommodation Spread
+******************************************************
+
+```{r}
+neighborhoods_loc <- ab_data %>% group_by(neighbourhood) %>% summarise(longitude = mean(longitude), latitude = mean(latitude)) 
+neighborhoods_loc$index <- c(1:20)
+
+hot_spot1 <- neighborhoods_loc %>% filter((index == 3))
+hot_spot2 <- neighborhoods_loc %>% filter((index == 5))
+hot_spot3 <- neighborhoods_loc %>% filter((index == 19))
+hot_spot4 <- neighborhoods_loc %>% filter((index == 8))
+
+#glimpse(neighborhoods_loc)
+
+base <- ggplot(paris) +
+   geom_sf() 
+
+base +
+    geom_text(data=neighborhoods_loc, 
+              aes(x=longitude, y=latitude, label=index)) + 
+    stat_density2d(data=ab_data, 
+                   aes(x=longitude, y=latitude, fill = ..density..), 
+                   geom='tile', contour = F, alpha = .6) +
+    viridis::scale_fill_viridis(option='inferno') + 
+    geom_segment(data = hot_spot1, 
+                 aes(x=longitude, y=latitude, xend=2.275, yend=48.9)) +
+    geom_segment(data = hot_spot2, 
+                 aes(x=longitude, y=latitude, xend=2.41, yend=48.9)) +
+    geom_segment(data = hot_spot3, 
+                 aes(x=longitude, y=latitude, xend=2.425, yend=48.87)) +
+    geom_segment(data = hot_spot4, 
+                 aes(x=longitude, y=latitude, xend=2.43, yend=48.88)) +
+    geom_label(data = hot_spot1, aes(label = neighbourhood, x=2.275, y=48.9)) + 
+    geom_label(data = hot_spot2, aes(label = neighbourhood, x=2.41, y=48.9)) +
+    geom_label(data = hot_spot3, aes(label = neighbourhood, x=2.425, y=48.87)) +
+    geom_label(data = hot_spot4, aes(label = neighbourhood, x=2.43, y=48.88)) +
+    labs(title = "Paris - Accomodation Densities by Neighbourhoods",
+       x = NULL,
+       y = NULL) 
+
+```
+There is clear evidence that most of the accommodations are located in Neighborhoods: "Bourse", "Temple", "L'Entrepot", and "Buttes-Montmartre" (Hot spots).
+
+### Accommodation Prices
+******************************************************
+
+```{r}
+ggplot(ab_data, aes(x = reorder(room_type, -price), y = price)) + 
+  geom_bar(stat = "summary", fun = "mean") +
+  labs(title = "Average Price (€) / Day",
+       x = NULL,
+       y = NULL)+
+  theme_minimal() +
+  theme(
+    strip.text = element_text(face = 'bold', hjust = 0),
+    plot.caption = element_text(face = 'italic'),
+    panel.grid.major = element_line('white', size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.x = element_blank(),
+    panel.ontop = TRUE
+  )
+```
+Overall hotel room prices are high comparing to the other accommodation types.
+
+```{r}
+ggplot(ab_data) + 
+  geom_boxplot(aes(x = price, y = room_type, fill = room_type))+
+  scale_x_continuous(limits = c(0, 5000)) + 
+  labs(title = "Room Types: Price Comparison",
+       x = "Price (€) / Day",
+       y = NULL) +
+  theme_minimal() +
+  theme(legend.position="none")
+  
+```
+
+
+In generally "Hotel Room" is the most expensive accommodation option and "Shared Room" is the cost effective option.
+But price variation of "Entire Home/Apartment" options is really high. Contains really high end prices.
+
+\newpage
+## Quality of service and Price.
+
+### Accomadation: Hotel Rooms
+******************************************************
+
+```{r}
+hotel_room <- ab_data %>% filter(room_type == 'Hotel room')
+
+# Check reviews
+ggplot(hotel_room, aes(y = reorder(neighbourhood, number_of_reviews), 
+                        x = number_of_reviews, #)) + 
+                        fill=factor(ifelse((neighbourhood=="Observatoire")|
+                                             (neighbourhood=="Buttes-Montmartre")|
+                                             (neighbourhood=="Bourse"),
+                                           "High Reviews",
+                                           "Not high")))) +
+  geom_bar(stat = "summary", fun = "mean")+
+  scale_fill_manual(name = "Reviews", values=c("#F7C815","grey50")) +
+  labs(title = "Room Type: Hotel Rooms - Reviews",
+       x = "Average Reviews",
+       y = NULL) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(face = 'bold', hjust = 0),
+    plot.caption = element_text(face = 'italic'),
+    panel.grid.major = element_line('white', size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.ontop = TRUE
+  )
+
+# Check prices
+ggplot(hotel_room, aes(y = reorder(neighbourhood, price), 
+                        x = price, #)) + 
+                        fill=factor(ifelse((neighbourhood=="Observatoire")|
+                                             (neighbourhood=="Buttes-Montmartre")|
+                                             (neighbourhood=="Bourse"),
+                                           "High Reviews",
+                                           "Not high")))) +
+  geom_bar(stat = "summary", fun = "mean")+
+  scale_fill_manual(name = "Reviews", values=c("#F7C815","grey50")) +
+  labs(title = "Room Type: Hotel Rooms - Prices",
+       x = "Average Price (€) / Day",
+       y = NULL) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(face = 'bold', hjust = 0),
+    plot.caption = element_text(face = 'italic'),
+    panel.grid.major = element_line('white', size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.ontop = TRUE
+  )
+```
+"Observatoire", "Buttes-Montmartre", and "Bourse" are the most highly review neighborhoods for hotel rooms.
+"Bourse" is more likely to have good quality high end hotel rooms.
+"Observatoire", "Buttes-Montmartre" neighborhoods are ideal for low budget hotel rooms with good quality service.
+
+
+### Accomodation: Entire home/Appartments
+******************************************************
+
+```{r}
+entire_home <- ab_data %>% filter(room_type == 'Entire home/apt')
+
+# Check reviews
+ggplot(entire_home, aes(y = reorder(neighbourhood, number_of_reviews), 
+                        x = number_of_reviews, #)) + 
+                        fill=factor(ifelse((neighbourhood=="Louvre")|
+                                             (neighbourhood=="Bourse")|
+                                             (neighbourhood=="Temple")|
+                                             (neighbourhood=="Hotel de Ville"),
+                                           "High Reviews",
+                                           "Not high")))) + 
+  geom_bar(stat = "summary", fun = "mean")+
+  scale_fill_manual(name = "Reviews", values=c("#00A300","grey50")) +
+  scale_color_manual(values = c("Louvre" = "Green",
+                               "Bourse" = "Green",
+                               "Temple" = "Green",
+                               "Hotel de Ville" = "Green")) +
+  labs(title = "Room Type: Entire home/apt - Reviews",
+       x = "Average Reviews",
+       y = NULL) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(face = 'bold', hjust = 0),
+    plot.caption = element_text(face = 'italic'),
+    panel.grid.major = element_line('white', size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.ontop = TRUE
+  )
+
+# Check prices
+ggplot(entire_home, aes(y = reorder(neighbourhood, price), 
+                        x = price, #)) + 
+                        fill=factor(ifelse((neighbourhood=="Louvre")|
+                                             (neighbourhood=="Bourse")|
+                                             (neighbourhood=="Temple")|
+                                             (neighbourhood=="Hotel de Ville"),
+                                           "High Reviews",
+                                           "Not high")))) +
+  geom_bar(stat = "summary", fun = "mean")+
+  scale_fill_manual(name = "Reviews", values=c("#00A300","grey50")) +
+  labs(title = "Room Type: Entire home/apt - Prices",
+       x = "Average Price (€) / Day",
+       y = NULL) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(face = 'bold', hjust = 0),
+    plot.caption = element_text(face = 'italic'),
+    panel.grid.major = element_line('white', size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.ontop = TRUE
+  )
+
+
+```
+"Louvre", "Bourse", "Temple", and "Hotel de Ville" are the most highly review neighborhoods for entire homes or apartments.
+"Louvre" and "Bourse" are more likely to have good quality high end homes or apartments.
+"Temple" and "Hotel de Ville" are more likely to have good quality moderate priced homes or apartments.
+
+### Accomadation: Private Rooms
+******************************************************
+
+```{r}
+private_room <- ab_data %>% filter(room_type == 'Private room')
+
+# Check reviews
+ggplot(private_room, aes(y = reorder(neighbourhood, number_of_reviews), 
+                        x = number_of_reviews, #)) + 
+                        fill=factor(ifelse((neighbourhood=="Louvre")|
+                                             (neighbourhood=="Bourse")|
+                                             (neighbourhood=="Hotel de Ville"),
+                                           "High Reviews",
+                                           "Not high")))) + 
+  geom_bar(stat = "summary", fun = "mean")+
+  scale_fill_manual(name = "Reviews", values=c("#AA1803","grey50")) +
+  scale_color_manual(values = c("Louvre" = "Green",
+                               "Bourse" = "Green",
+                               "Temple" = "Green",
+                               "Hotel de Ville" = "Green")) +
+  labs(title = "Room Type: Private Rooms - Reviews",
+       x = "Average Reviews",
+       y = NULL) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(face = 'bold', hjust = 0),
+    plot.caption = element_text(face = 'italic'),
+    panel.grid.major = element_line('white', size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.ontop = TRUE
+  )
+
+# Check prices
+ggplot(private_room, aes(y = reorder(neighbourhood, price), 
+                        x = price, #)) + 
+                        fill=factor(ifelse((neighbourhood=="Louvre")|
+                                             (neighbourhood=="Bourse")|
+                                             (neighbourhood=="Hotel de Ville"),
+                                           "High Reviews",
+                                           "Not high")))) +
+  geom_bar(stat = "summary", fun = "mean")+
+  scale_fill_manual(name = "Reviews", values=c("#AA1803","grey50")) +
+  labs(title = "Room Type: Private Rooms - Prices",
+       x = "Average Price (€) / Day",
+       y = NULL) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(face = 'bold', hjust = 0),
+    plot.caption = element_text(face = 'italic'),
+    panel.grid.major = element_line('white', size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.ontop = TRUE
+  )
+```
+"Louvre", "Hotel de Ville", and "Bourse" are the most highly review neighborhoods for private rooms.
+"Louvre" and "Bourse" are more likely to have good quality high end private rooms.
+"Hotel de Ville" is more likely to have good quality moderate priced private rooms.
+
+### Accomadation: Shared Rooms
+******************************************************
+
+```{r}
+shared_room <- ab_data %>% filter(room_type == 'Shared room')
+
+# Check reviews
+ggplot(shared_room, aes(y = reorder(neighbourhood, number_of_reviews), 
+                        x = number_of_reviews, #)) + 
+                        fill=factor(ifelse((neighbourhood=="Reuilly")|
+                                             (neighbourhood=="Opera")|
+                                             (neighbourhood=="Bourse"),
+                                           "High Reviews","Not high")))) + 
+  geom_bar(stat = "summary", fun = "mean")+
+  scale_fill_manual(name = "Reviews", values=c("#2F70AF","grey50")) +
+  scale_color_manual(values = c("Louvre" = "Green",
+                               "Bourse" = "Green",
+                               "Temple" = "Green",
+                               "Hotel de Ville" = "Green")) +
+  labs(title = "Room Type: Shared Rooms - Reviews",
+       x = "Average Reviews",
+       y = NULL) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(face = 'bold', hjust = 0),
+    plot.caption = element_text(face = 'italic'),
+    panel.grid.major = element_line('white', size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.ontop = TRUE
+  )
+
+# Check prices
+ggplot(shared_room, aes(y = reorder(neighbourhood, price), 
+                        x = price, #)) + 
+                        fill=factor(ifelse((neighbourhood=="Reuilly")|
+                                             (neighbourhood=="Opera")|
+                                             (neighbourhood=="Bourse"),
+                                           "High Reviews",
+                                           "Not high")))) +
+  geom_bar(stat = "summary", fun = "mean")+
+  scale_fill_manual(name = "Reviews", values=c("#2F70AF","grey50")) +
+  labs(title = "Room Type: Shared Rooms - Prices",
+       x = "Average Price (€) / Day",
+       y = NULL) +
+  theme_minimal() + 
+  theme(
+    strip.text = element_text(face = 'bold', hjust = 0),
+    plot.caption = element_text(face = 'italic'),
+    panel.grid.major = element_line('white', size = 0.5),
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.ontop = TRUE
+  )
+
+
+```
+"Reuilly", "Opera", and "Bourse" are the most highly review neighborhoods for shared rooms.
+"Bourse" is more likely to have good quality moderate priced shared rooms.
+"Reuilly" and "Opera" are ideal for low budget shared rooms with good quality service.
+
+\newpage
+## Safety 
+
+### Overall Accommodation licensing
+******************************************************
+
+```{r}
+licensed_info <- ab_data %>% group_by(room_type) %>% 
+  count(license_cat, name = "n") %>% 
+  pivot_wider(names_from = license_cat, values_from = n, values_fill = 0) %>% 
+  ungroup()
+
+licensed_info$total <- licensed_info$Licensed + 
+  licensed_info$`License Not Available`+ 
+  licensed_info$`Mobile Lease License`+
+  licensed_info$`License Exempt`
+
+licensed_info$Licensed_Percent <- 
+  (licensed_info$Licensed)/(licensed_info$total)*100
+licensed_info$Non_Licensed_Percent <- 
+  (licensed_info$`License Not Available`)/(licensed_info$total)*100
+licensed_info$Mobile_Lease_Percent <- 
+  (licensed_info$`Mobile Lease License`)/(licensed_info$total)*100
+licensed_info$License_Exempt_Percent <- 
+  (licensed_info$`License Exempt`)/(licensed_info$total)*100
+
+licensed_info <- data.frame(
+  room_type = licensed_info$room_type,
+  Licensed = licensed_info$Licensed_Percent,
+  Non_Licensed = licensed_info$Non_Licensed_Percent,
+  Mobile_Lease = licensed_info$Mobile_Lease_Percent,
+  License_Exempt = licensed_info$License_Exempt_Percent)
+
+licensed_info <- melt(licensed_info, id.vars=c("room_type"))
+
+
+licensed_info$ord.x <- factor(licensed_info$variable, ordered=TRUE, 
+                              levels = c("Licensed", "Mobile_Lease",
+                                         "License_Exempt", "Non_Licensed"))
+licensed_info$ord.y <- factor(licensed_info$room_type, ordered=TRUE, 
+                              levels = c("Shared room", "Private room",
+                                         "Entire home/apt", "Hotel room"))
+
+ggplot(licensed_info) +
+  geom_tile(aes(y = ord.y, x = ord.x, fill= value)) +
+  scale_fill_viridis_c(option = "inferno", direction=-1) +
+  labs(title = "Licensing Status",
+            fill = "Percentage (%)",
+            x = NULL,
+            y = NULL)+
+  theme_minimal()
+```
+Overall around 60% of "Entire home/apt" are licensed.
+Overall majority of the "Shared rooms" are not licensed.
+
+### Neighbourhood Level: Accommodation licensing
+******************************************************
+
+```{r}
+license_type_pivot2 <- ab_data %>% group_by(neighbourhood) %>% 
+  count(license_cat, name = "n") %>% 
+  pivot_wider(names_from = license_cat, values_from = n, values_fill = 0) %>% 
+  ungroup()
+
+license_type_pivot2$total <- license_type_pivot2$Licensed+ 
+  license_type_pivot2$`License Not Available`+ 
+  license_type_pivot2$`Mobile Lease License`+
+  license_type_pivot2$`License Exempt`
+
+license_type_pivot2$Licensed_Percent <- (
+  license_type_pivot2$Licensed)/(license_type_pivot2$total)*100
+license_type_pivot2$Non_Licensed_Percent <- (
+  license_type_pivot2$`License Not Available`)/(license_type_pivot2$total)*100
+license_type_pivot2$Mobile_Lease_Percent <- (
+  license_type_pivot2$`Mobile Lease License`)/(license_type_pivot2$total)*100
+license_type_pivot2$License_Exempt_Percent <- (
+  license_type_pivot2$`License Exempt`)/(license_type_pivot2$total)*100
+
+license_type_pivot2 <- data.frame(
+  neighbourhood = license_type_pivot2$neighbourhood,
+  Licensed = license_type_pivot2$Licensed_Percent,
+  Non_Licensed = license_type_pivot2$Non_Licensed_Percent,
+  Mobile_Lease = license_type_pivot2$Mobile_Lease_Percent,
+  License_Exempt = license_type_pivot2$License_Exempt_Percent)
+
+license_type_pivot2 <-data.frame(license_type_pivot2, row.names = 1)
+
+license_type_pivot2 <- license_type_pivot2 %>% arrange(-Licensed, -Non_Licensed)
+
+ggballoonplot(license_type_pivot2, fill = "value", size.range = c(1, 8)) +
+  scale_fill_viridis_c(option = "C")+
+  guides(size = FALSE) + 
+  labs(title = "Percentages: License Type",
+       fill = 'Percentage (%)',
+       x = NULL,
+       y = NULL)
+```
+Majority of the accommodations are licensed in neighborhood "Bourse".
+"Temple", "Louvre", "Hotel de Ville" follows respectively.
+
+\newpage
+## Demand for the accomadation
+
+### Availability
+******************************************************
+
+```{r}
+availability <- ab_data %>% group_by(neighbourhood, room_type) %>% 
+  summarise(mean_availability = mean(availability_365))
+
+availability_pivot2 <- availability %>% 
+  pivot_wider(names_from = room_type, 
+              values_from = mean_availability, 
+              values_fill = 0) %>% 
+  ungroup()
+
+availability_pivot2 <- data.frame(
+  neighbourhood = availability_pivot2$neighbourhood,
+  Hotel_Room = availability_pivot2$`Hotel room`,
+  Shared_Room = availability_pivot2$`Shared room`,
+  Private_Room = availability_pivot2$`Private room`,
+  Entire_Home = availability_pivot2$`Entire home/apt`)
+
+availability_pivot2 <- availability_pivot2 %>% 
+  arrange(-Hotel_Room, -Shared_Room, -Private_Room, -Entire_Home)
+                                                       
+availability_pivot2 <-data.frame(availability_pivot2, row.names = 1)
+
+ggballoonplot(availability_pivot2, fill = "value", size.range = c(1, 8)) +
+  scale_fill_viridis_c(option = "viridis")+
+  guides(size = FALSE) + 
+  labs(title = "Accommodation Availability 365",
+       fill = "Avg. Available Days/365",
+       x = NULL,
+       y = NULL)
+```
+Overall "Private Rooms" and "Entire Home/Apartments" are highly demanded and less available.
+In any neighborhood it is easy to find available "Hotel Room".
+Overall "Buttes-Montmartre", "Buttes-Chaumont", "Opera", and "Bourse" highly highly demanded and less available neighborhoods. 
+
+\newpage
+## Rules and Conditions
+
+### Rules: Minimum Nights
+******************************************************
+
+```{r}
+min_nights <- ab_data %>% group_by(neighbourhood, room_type) %>% 
+  summarise(mean_min_nights = mean(minimum_nights))
+
+min_nights_pivot <- min_nights %>% 
+  pivot_wider(names_from = room_type, 
+              values_from = mean_min_nights, 
+              values_fill = 0) %>% 
+  ungroup()
+
+min_nights_pivot <- data.frame(
+  neighbourhood = min_nights_pivot$neighbourhood,
+  Hotel_Room = min_nights_pivot$`Hotel room`,
+  Shared_Room = min_nights_pivot$`Shared room`,
+  Private_Room = min_nights_pivot$`Private room`,
+  Entire_Home = min_nights_pivot$`Entire home/apt`)
+
+min_nights_pivot <- min_nights_pivot %>% 
+  arrange(-Hotel_Room, -Shared_Room, -Private_Room, -Entire_Home)
+                                                       
+min_nights_pivot <-data.frame(min_nights_pivot, row.names = 1)
+
+ggballoonplot(min_nights_pivot, fill = "value", size.range = c(1, 8)) +
+  scale_fill_viridis_c(option = "inferno", direction=-1)+
+  guides(size = FALSE) + 
+  labs(title = "Rule: Minimum Nights per Booking",
+       fill = "Avg. Minimum Nights",
+       x = NULL,
+       y = NULL)
+```
+Overall "Entire Home/Apartment" type accommodations are come up with more conditions. Expecting a longer booking period.
+"Share Rooms" and "Private Rooms" bookings are more flexible and associated with less conditions.
+Hotel room bookings in "Buttes-Chaumont", and "Menilmontant" are associated with high conditions.
+
+### Per day prices with minimum nights
+******************************************************
+
+```{r}
+ggplot(ab_data) + 
+  geom_point(aes(x = minimum_nights, y = price, color = room_type)) + 
+  scale_x_continuous(limits = c(0, 400)) +
+  scale_y_continuous(limits = c(0, 1000)) +
+  #geom_abline(slope = 100, intercept = 365, colour = 'red') +
+  geom_vline(xintercept = 365, size = 4, alpha = 0.15) + 
+  facet_wrap(~ room_type) +
+  labs(title = "Per Day Prices by Number of Nights",
+       y = "Price (€) / Day",
+       x = "Min. Nights",
+       name = "Room Type") +
+  theme_minimal() +
+  theme(legend.position="none")
+
+```
+Generally for any accommodation type except "Hotel rooms", price per day reduces when booking period increases. 
+Hotel rooms are more likely to have fix per day prices.
+But there is an exception when it comes to "Entire home/apt" and "Hotel room" type with booking for ONE YEAR. Seems a popular option.
+
+\newpage
+## Summary
+******************************************************
+
+- "Hotel rooms" prices are generally high but highly available.
+- "Share rooms" are the most cost effective and more flexible option.
+- "Entire Home/Apartment" accommodation type is the most safest option and generally associated with more rules.
+- You are able to find better prices when booking an accommodation for longer period. 
+- "Observatoire", "Buttes-Montmartre", and "Bourse" neighborhoods are ideal for "Hotel Room" bookings.
+- "Louvre", "Bourse", "Temple", and "Hotel de Ville" neighborhoods are ideal for "Entire Home/Apartment" bookings.
+- "Louvre", "Hotel de Ville", and "Bourse" neighborhoods are ideal for "Private Room" bookings.
+- "Reuilly", "Opera", and "Bourse" neighborhoods are ideal for "Shared Room" bookings.
+- Overall "Bourse" is the most visitor friendly neighborhood.

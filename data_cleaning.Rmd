@@ -1,0 +1,203 @@
+---
+title: "Data Cleaning - Inside_Airbnb :City - Paris, France"
+output: word_document
+---
+
+## Prerequisits
+****************************************
+
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+setwd("C:/Personal/Books/MSc. in Applied Statistics/MAS 5112 - Exploratory Data Analysis/Group Project 1/Inside_Airbnb_City_Paris_France")
+```
+
+\newpage
+## Expected Changes
+******************************************************
+
+In previous step we have identified issue exists within the data.
+
+Column                  | Expected change
+----------------------- | ------------------------------------------
+'name':	                |Remove field.
+'host_name':            |Remove field.
+'neighbourhood_group':  |Remove field.
+'neighbourhood':        |Replace special characters.
+'price':	              |Fill zero values. (Considering room type).
+'last_review':          |Rename 'last_review' column as 'last_review_date'.
+'reviews_per_month':    |Fill null values with zero.
+'number_of_reviews_ltm': |Rename 'number_of_reviews_ltm' column as 'number_of_reviews_last_month'.
+'license':              |Fill null values.
+
+\newpage
+## Data Cleaning
+
+### Load data
+******************************************************
+
+```{r}
+listings <- read_csv('listings.csv',                     
+                    col_types = cols(
+                        id = col_character(),
+                        name = col_character(),
+                        host_id = col_character(),
+                        host_name = col_character(),
+                        neighbourhood_group = col_character(),
+                        neighbourhood = col_character(),
+                        latitude = col_double(),
+                        longitude = col_double(),
+                        room_type = col_character(),
+                        price = col_double(),
+                        minimum_nights = col_integer(),
+                        number_of_reviews = col_integer(),
+                        last_review = col_date(format = ""),
+                        reviews_per_month = col_double(),
+                        calculated_host_listings_count = col_integer(),
+                        availability_365 = col_integer(),
+                        number_of_reviews_ltm = col_integer(),
+                        license = col_character())
+                    )
+```
+
+
+### Columns: 'Name', 'host_name' and 'neighbourhood_group'
+******************************************************
+
+```{r pressure, echo=FALSE}
+# Remove fields
+listings <- select(listings, -c(name, host_name, neighbourhood_group))
+```
+
+
+### Column: 'neighbourhood'
+******************************************************
+
+Some values containing some special characters. Replace those values with actual neighborhood names.
+```{r}
+listings %>% select(neighbourhood) %>% unique()
+```
+
+```{r}
+listings <- listings %>% 
+  mutate(neighbourhood = replace(neighbourhood, neighbourhood == "Ménilmontant", "Menilmontant"))
+listings <- listings %>% 
+  mutate(neighbourhood = replace(neighbourhood, neighbourhood == "Hôtel-de-Ville", "Hotel de Ville"))
+listings <- listings %>% 
+  mutate(neighbourhood = replace(neighbourhood, neighbourhood == "Opéra", "Opera"))
+listings <- listings %>% 
+  mutate(neighbourhood = replace(neighbourhood, neighbourhood == "Panthéon", "Patheon"))
+listings <- listings %>% 
+  mutate(neighbourhood = replace(neighbourhood, neighbourhood == "Entrepôt", "L'Entrepot"))
+listings <- listings %>% 
+  mutate(neighbourhood = replace(neighbourhood, neighbourhood == "Élysée", "Avenue des Champs-Elysees"))
+
+listings %>% select(neighbourhood) %>% unique()
+```
+
+
+### Column: 'price'
+******************************************************
+```{r}
+# Mean values with non-zero price entries
+mean_price_by_room_type <- listings %>% filter(price != 0) %>% select(room_type, price) %>% group_by(room_type) %>% summarise_at(vars(price), list(mean_price = mean))
+
+mean_price_by_room_type
+```
+```{r}
+# Check zero price value counts for each room type
+zero_count <- listings %>% filter(room_type == mean_price_by_room_type[1,1]) %>% filter(price == 0) %>% count()
+sprintf("Zero price count for '%s' type %s", mean_price_by_room_type[1,1], zero_count)
+zero_count <- listings %>% filter(room_type == mean_price_by_room_type[2,1]) %>% filter(price == 0) %>% count()
+sprintf("Zero price count for '%s' type %s", mean_price_by_room_type[2,1], zero_count)
+zero_count <- listings %>% filter(room_type == mean_price_by_room_type[3,1]) %>% filter(price == 0) %>% count()
+sprintf("Zero price count for '%s' type %s", mean_price_by_room_type[3,1], zero_count)
+zero_count <- listings %>% filter(room_type == mean_price_by_room_type[4,1]) %>% filter(price == 0) %>% count()
+sprintf("Zero price count for '%s' type %s", mean_price_by_room_type[4,1], zero_count)
+```
+It seems all the zero prices are from 'Entire home/apt' room type.
+
+```{r}
+# Replace zero price value for 'Entire home/apt' room type with mean price
+listings$price[(listings$price == 0)] <- mean_price_by_room_type[1,2]
+
+zero_count <- listings %>% filter(room_type == mean_price_by_room_type[1,1]) %>% filter(price == 0) %>% count()
+sprintf("Zero price count for '%s' type %s", mean_price_by_room_type[1,1], zero_count)
+
+#listings$price %<>% as.double
+listings <- listings %>% mutate(across(price, as.double))
+```
+Zero price values for room type 'Entire home/apt' replaced by the mean price for the category
+
+
+### Columns: 'last_review' and 'number_of_reviews_ltm'
+******************************************************
+
+```{r}
+# Rename 'last_review' column as 'last_review_date'
+# Rename 'number_of_reviews_ltm' column as 'number_of_reviews_last_month'
+listings <- rename(listings,
+                  last_review_date = last_review,
+                  number_of_reviews_last_month = number_of_reviews_ltm)
+```
+
+### Column: 'reviews_per_month'
+******************************************************
+
+```{r}
+listings %>% filter(is.na(reviews_per_month)) %>% count() 
+```
+```{r}
+# Replace NA values with 0
+listings$reviews_per_month[is.na(listings$reviews_per_month)] <- 0
+
+listings %>% filter(is.na(reviews_per_month)) %>% count() 
+```
+
+
+### Column: 'license'
+******************************************************
+```{r}
+# Fill null values
+listings$license[is.na(listings$license)] <- '0'
+listings$license[listings$license == "/"] <- '0'
+```
+
+
+### Column: 'license_cat' (new field)
+******************************************************
+```{r}
+listings <- listings %>% mutate(license_cat = license)
+listings <- listings %>% mutate(license_cat = str_sub(license_cat, 1 , 38))
+
+listings = listings %>% mutate(
+  license_cat = case_when(license_cat == "0"~ "License Not Available",
+                          license_cat == "Aucun"~ "License Not Available",
+                          license_cat == "il n'y a pas de numÃ©ro d'enregistremen"~ "License Not Available",
+                          license_cat == "Available with a mobility lease only ("~ "Mobile Lease License",
+                          license_cat == "Exempt - hotel-type listing"~ "License Exempt",
+                          license_cat == "Pas besoin"~ "License Exempt",
+                          license_cat == "pas besoin"~ "License Exempt",
+                          TRUE ~ "Licensed")
+ )
+
+```
+
+License category types:
+
+Categorty | Description
+----------| -------------
+Not Available| No registration number available
+Mobile_Lease| For temporary use (few months, for students and professionals)
+Exempt| Not required to have a license
+Licensed| Registered.
+
+
+## Save data
+******************************************************
+
+```{r}
+# Save data in csv
+write_csv(listings, 'listing_cleaned.csv')
+```
+

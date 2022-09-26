@@ -1,0 +1,380 @@
+---
+title: "Check Data Integrity - Inside_Airbnb :City - Paris, France"
+output: word_document
+---
+
+# Check Data Integrity
+
+## Prerequisits
+****************************************
+
+```{r}
+library(tidyverse)
+#tinytex::install_tinytex()
+setwd("C:/Personal/Books/MSc. in Applied Statistics/MAS 5112 - Exploratory Data Analysis/Group Project 1/Inside_Airbnb_City_Paris_France")
+```
+
+## Load data with approprivate data types
+****************************************
+
+```{r}
+listings <- read_csv('listings.csv',                     
+                    col_types = cols(
+                        id = col_character(),
+                        name = col_character(),
+                        host_id = col_character(),
+                        host_name = col_character(),
+                        neighbourhood_group = col_character(),
+                        neighbourhood = col_character(),
+                        latitude = col_double(),
+                        longitude = col_double(),
+                        room_type = col_character(),
+                        price = col_double(),
+                        minimum_nights = col_integer(),
+                        number_of_reviews = col_integer(),
+                        last_review = col_date(format = ""),
+                        reviews_per_month = col_double(),
+                        calculated_host_listings_count = col_integer(),
+                        availability_365 = col_integer(),
+                        number_of_reviews_ltm = col_integer(),
+                        license = col_character())
+                    )
+```
+
+
+## Check shape of the data
+****************************************
+
+```{r pressure, echo=FALSE}
+head(listings)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+summary(listings)
+```
+```{r}
+print('Columns:')
+print(colnames(listings))
+
+cat("\nDimensions:")
+print(dim(listings))
+```
+
+
+\newpage
+## Identity problems with Data
+
+
+### Column_01: 'id'
+****************************************
+
+```{r}
+# Check number of unique values
+listings %>% select(id) %>% unique() %>% count()
+```
+```{r}
+# Check number of null values
+listings %>% filter(is.na(id)) %>% count()
+```
+Column 'id':  
+  No null values.  
+  56739 unique values which matches with the total number of entries.  
+  No issues.
+  
+
+### Column_02: 'name'
+****************************************
+
+```{r}
+# Check number of unique values
+listings %>% select(name) %>% unique() %>% count()
+```
+```{r}
+# Check number of null values
+listings %>% filter(is.na(name)) %>% count()
+```
+Column 'name':  
+  43 null values exists.  
+  Out of 56739 rows there are 54742 unique values which means there are duplicate names.  
+  Including special characters.
+  Less important for statistical analysis.
+  
+
+### Column_03: 'host_id'
+****************************************
+
+```{r}
+# Check number of unique values
+listings %>% select(host_id) %>% unique() %>% count()
+```
+```{r}
+# Check number of null values
+listings %>% filter(is.na(host_id)) %>% count()
+```
+Column 'host_id':  
+  No null values.  
+  Out of 56739 rows there are 43723 unique values which means there are multiple entries for same host id.  
+  Nothing to fix in data, be aware that there are multiple entries.
+  
+
+### Column_04: 'host_name'
+****************************************
+
+```{r}
+# Check number of unique values
+listings %>% select(host_name) %>% unique() %>% count()
+```
+```{r}
+# Check number of null values
+listings %>% filter(is.na(host_name)) %>% count()
+```
+Column 'host_name':  
+  There are 12 null values.  
+  Out of 56739 rows there are 9153 unique values which means there are multiple entries.  
+  Since this field represent persons name it is less important, can be deleted.
+  
+  
+### Column_05: 'neighbourhood_group'
+**************************************** 
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(neighbourhood_group)) %>% count()
+```
+Column 'neighbourhood_group':  
+  Empty column.  
+  Neighborhood group data is not available for the city- Paris.  
+  Can be deleted.
+  
+
+### Column_06: 'neighbourhood'
+**************************************** 
+
+```{r}
+# Check number of unique values
+listings %>% select(neighbourhood) %>% unique() %>% count()
+```
+```{r}
+# Check number of null values
+listings %>% filter(is.na(neighbourhood)) %>% count()
+```
+Column 'neighbourhood':  
+  No null values.  
+  20 unique values.  
+  Including special characters.
+  
+  
+### Column_07: 'latitude'
+**************************************** 
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(latitude)) %>% count()
+```
+Column 'latitude':  
+  No null values.  
+  No issues.
+  
+
+### Column_08: 'longitude'
+****************************************
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(longitude)) %>% count()
+```
+
+Column 'longitude':  
+  No null values.  
+  No issues.
+ 
+
+### Column_09: 'room_type'
+****************************************
+
+```{r}
+# Check number of unique values
+listings %>% select(room_type) %>% unique() %>% count()
+```
+```{r}
+listings %>% select(room_type) %>% unique()
+```
+```{r}
+# Check number of null values
+listings %>% filter(is.na(room_type)) %>% count()
+```
+Column 'room_type':  
+  No null values. 
+  There are four categories ['Entire home/apt', 'Private room', 'Shared room', 'Hotel room'].
+  No issues.
+  
+  
+### Column_10: 'price'
+**************************************** 
+
+```{r}
+# Check number of null or zero values
+listings %>% filter(price == 0 | is.na(price)) %>% count()
+``` 
+Column 'price':  
+  There are 29 null or zero price entries. 
+  Need to fill zero values by 'room_type' taking in to account.
+  
+
+### Column_11: 'minimum_nights'
+****************************************
+
+```{r}
+# Check number of null or zero values
+listings %>% filter(minimum_nights == 0 | is.na(minimum_nights)) %>% count()
+``` 
+Column 'minimum_nights':  
+  Non-zero values exists for all entries. 
+  No issues.
+  
+
+### Column_12: 'number_of_reviews'
+****************************************  
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(number_of_reviews)) %>% count()
+```
+```{r}
+# Check for no reviews
+listings %>% filter(number_of_reviews == 0) %>% count()
+```
+
+Column 'number_of_reviews':  
+  No null values. 
+  There are 11458 entries with no reviews.
+  No issues.
+  
+  
+### Column_13: 'last_review'
+****************************************
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(last_review)) %>% count()
+```
+This figure (11458) is compatible with number of entries with no reviews.
+It is important to check whether those entries with non-zero value for 'number_of_reviews' has a 'last_review' (date)
+```{r}
+# Check 'number_of_reviews' against 'last_review' (date)
+listings %>% filter((number_of_reviews != 0) & is.na(last_review)) %>% count()
+```
+```{r}
+listings %>% filter((number_of_reviews == 0) & (!is.na(last_review))) %>% count()
+```
+Column 'last_review':  
+  All non-zero entries for 'number_of_reviews' field have non empty 'last_review' (date).
+  No issues with the data.
+  It is recommended to rename 'last_review' column as 'last_review_date' which is more meaningful.
+  
+
+### Column_14: 'reviews_per_month'
+****************************************
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(reviews_per_month)) %>% count()
+```
+```{r}
+# Check 'number_of_reviews' and 'reviews_per_month'
+listings %>% filter(is.na(reviews_per_month)) %>% select(number_of_reviews, reviews_per_month)
+```
+```{r}
+# Check 'number_of_reviews' against 'reviews_per_month'
+listings %>% filter((number_of_reviews != 0) & (is.na(reviews_per_month)|(reviews_per_month == 0))) %>% count()
+```
+Column 'reviews_per_month':  
+  All non-zero entries for 'number_of_reviews' field have non empty or non-zero 'reviews_per_month' value.
+  Fill null values with zero.
+  
+  
+### Column_15: 'calculated_host_listings_count'
+****************************************
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(calculated_host_listings_count)) %>% count()
+```
+Column 'calculated_host_listings_count':  
+  No issues with the data.
+  Need to understand what this figure means.
+
+
+### Column_16: 'availability_365'  
+****************************************
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(availability_365)) %>% count()
+```
+```{r}
+# Check number of zero values
+listings %>% filter(availability_365 == 0) %>% count()
+```
+```{r}
+#listings %>% filter(availability_365 == 0)
+```
+```{r}
+#listings %>% filter(availability_365 == 365)
+```
+Column 'availability_365':  
+  No null values.
+  No issues.
+  
+
+### Column_17: 'number_of_reviews_ltm'
+****************************************
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(availability_365)) %>% count()
+```
+Column 'number_of_reviews_ltm':  
+  No null values.
+  It is recommended to rename this column as 'number_of_reviews_last_month' which is more meaningful.
+
+
+### Column_18: 'license'
+**************************************** 
+
+```{r}
+# Check number of null values
+listings %>% filter(is.na(license)) %>% count()
+```
+Column 'license':  
+  All most half of the entries have 'license' value.
+  Fill null values.
+  
+\newpage
+
+## Summary
+**************************************** 
+
+Column:			             |Description
+------------------------ |-------------------------------------
+'id':  			             |No issues.
+'name':			             |Remove field.
+'host_id':			         |No issues. Be aware that there are multiple entries.
+'host_name':		         |Remove field.
+'neighbourhood_group':	 |Remove field.
+'neighbourhood':		     |Including special characters.
+'latitude':			         |No issues.
+'longitude':		         |No issues.
+'room_type':		         |No issues.
+'price':			           |Fill zero values. (Considering room type)
+'minimum_nights':		     |No issues.
+'number_of_reviews':	   |No issues.
+'last_review':		       |Rename 'last_review' column as 'last_review_date'.
+'reviews_per_month':	   |Fill null values with zero.
+'calculated_host_listings_count': |No issues.
+'availability_365':	     |No issue.
+'number_of_reviews_ltm': |Rename 'number_of_reviews_ltm' column as 'number_of_reviews_last_month'.
+'license':			         |Fill null values.
+  
+
